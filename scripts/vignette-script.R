@@ -60,3 +60,32 @@ heart_wf <- workflow() %>%
 log_reg_fit <- heart_wf %>% fit(data= train)
 log_reg_fit
 
+# generating predictions on test data
+test_pred <- predict(log_reg_fit, new_data= test, type = 'prob') %>% 
+  bind_cols(test %>%  select(target))
+colnames(test_pred)
+
+test_pred <- test_pred %>% 
+  mutate(.pred_class = ifelse(.pred_1 > 0.5, '1', '0') %>% factor(
+    levels = levels(target)
+  ))
+
+# accuracy and confusion matrix
+log_reg_accuracy <- mean(test_pred$.pred_class == test_pred$target)
+log_reg_accuracy # 0.7635
+
+table(
+  Predicted = test_pred$.pred_class,
+  Actual = test_pred$target
+)
+
+## true negatives: 61, true positives: 52
+## false positives: 9, false negatives: 26
+
+# AUC
+library(pROC)
+roc_obj <- roc(test_pred$target, test_pred$.pred_1)
+auc(roc_obj)
+
+## 0.8533 -- model can correctly rank a random positive example higher
+## than a random negative example 85% of the time
