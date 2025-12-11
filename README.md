@@ -1,10 +1,10 @@
-# vignette-logistic-regression
+## vignette-logistic-regression
 A simple vignette demonstrating binary logistic regression in R using the UCI Heart Disease dataset.
 
 Vignette on implementing logistic regression in R using the UCI Heart Disease dataset; 
 created for final assignment for PSTAT197A in Fall 2025.
 
-Completed independently by Angie Sethi
+**Completed independently by Angie Sethi**
 
 This vignette introduces logistic regression for binary classification using 
 the Heart Disease dataset from the UCI Machine Learning Repository. The goal is
@@ -13,8 +13,7 @@ coefficients, visualize results, and evaluate model performance using accuracy
 and ROC curves. The example is intentionally simple and designed for students 
 encountering logistic regression for the first time.
 
-
-Repository contents is as follows: 
+# Repository contents is as follows: 
 
 -data/
  --raw/ # original heart.csv
@@ -32,7 +31,7 @@ Repository contents is as follows:
 -vignette.html # rendered vignette
 -README.md
 
-References:
+# References:
 1. UCI Machine Learning Repository – Heart Disease dataset: 
 https://www.kaggle.com/datasets/redwankarimsony/heart-disease-data?resource=download 
 2. 
