@@ -187,3 +187,13 @@ This vignette demonstrated how to fit and evaluate a logistic regression model f
 The results show that a logistic regression model provides a strong and interpretable baseline for heart disease prediction. Several predictors like age, sex, etc. seem to play meaningful roles in determining risk.
 
 To continue with this vignette or understand more about heart disease, it may be worth considering alternative models like random forests or neural networks, regularization via LASSO or other methods to avoid overfitting, or using imputation rather than simply dropping NA/missing values.
+
+## Plots
+
+## Predicted Probabilities Plot
+
+![](img/logistic_probabilities.png){width="70%"}
+
+## ROC Curve
+
+![](img/roc_curve.png){width="70%"}

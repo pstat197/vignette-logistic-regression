@@ -36,6 +36,7 @@ df_clean <- df_clean %>%
 
 glimpse(df_clean)
 table(df_clean$target)
+write_csv(df_clean, 'data/processed/heart_clean.csv')
 
 library(tidymodels)
 set.seed(123)
@@ -88,3 +89,48 @@ auc(roc_obj)
 
 ## 0.8533 -- model can correctly rank a random positive example higher
 ## than a random negative example 85% of the time
+
+# plots
+library(ggplot2)
+
+# predicted probabilities on the test set:
+test_pred_df <- test_pred %>% 
+  mutate(prob = .pred_1)
+
+logistic_plot <- ggplot(test_pred_df, aes(x = prob, fill = target)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(
+    title= "predicted probabilities from logistic regression",
+    x = "predicted probability of heart disease",
+    y = "count",
+    fill ="actual target"
+  ) +
+  theme_minimal(base_size = 14)
+logistic_plot
+
+# save to img folder
+ggsave(
+  filename = "img/logistic_probabilities.png",
+  plot = logistic_plot,
+  width = 7, height = 5, dpi = 300
+)
+
+# ROC curve plot and save
+roc_plot <- ggroc(roc_obj, color = "green", size = 1.2) +
+  labs(
+    title = "ROC Curve for Logistic Regression Model",
+    x = "False Positive Rate",
+    y = "True Positive Rate"
+  ) +
+  theme_minimal(base_size = 14)
+
+roc_plot
+
+ggsave(
+  filename = "img/roc_curve.png",
+  plot = roc_plot,
+  width = 7,
+  height = 5,
+  dpi = 300
+)

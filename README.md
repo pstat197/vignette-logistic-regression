@@ -17,15 +17,16 @@ encountering logistic regression for the first time.
 
 -data/
  --raw/ # original heart.csv
+  ---heart_disease_uci.csv
  --processed/ # cleaned dataset used in the example
+  ---heart_clean.csv
 
 -scripts/
- --drafts/ # scratch code
  --vignette-script.R # fully annotated script that reproduces the vignette
 
 -img/
- --fig-logistic-fit.png
- --fig-roc-curve.png
+ --roc_curve.png
+ --logistic_probabilities.png
  
 -vignette.qmd # main teaching document
 -vignette.html # rendered vignette
