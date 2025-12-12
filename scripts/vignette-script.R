@@ -34,16 +34,15 @@ df_clean <- df_clean %>%
     target = factor(target)
   )
 
+glimpse(df_clean)
+table(df_clean$target)
+
 library(tidymodels)
 set.seed(123)
 data_split <- initial_split(df_clean, prop = 0.8)
 
 train <- training(data_split)
 test <- testing(data_split)
-
-glimpse(df_clean)
-table(df_clean$target)
-
 
 # fitting logistic regression model
 heart_recipe <- recipe(target ~ ., data= train) %>% 

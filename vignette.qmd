@@ -1,0 +1,189 @@
+---
+title: "logistic regression for heart disease prediction"
+author: "angie sethi"
+format: html
+editor: visual
+---
+
+## Introduction
+
+This vignette provides a simple, beginner-friendly walkthrough of how to fit and evaluate a **logistic regression model** for predicting heart disease using a cleaned version of the **UCI Heart Disease dataset**. Logistic regression is one of the most widely used classification methods in applied statistics and data science, especially when the goal is to predict a **binary outcome**. In this case, whether a patient shows signs of heart disease or not.
+
+The goal of this vignette is to provide a clear, reproducible example that another student in PSTAT 197A could use when navigating a similar binary classification problem. All steps are shows in R and use the tidymodels library. This vignette focuses on the following:
+
+-   loading and inspectical and public medical dataset
+
+-   cleaning and preprocessing variables
+
+-   fitting a logistic regression model using tidymodels
+
+-   generating predictions on the test set
+
+-   evaluating model performance using classification accuracy, confusion matrix, and AUC
+
+## Loading and Preparing the Data
+
+We can begin by loading the heart disease dataset. This dataset contains demographic, clinical, and lab measurements for 920 patients. The original outcome variable, num, ranges from 0-4. 0 indicates *no heart disease* and values 1-4 indicate *presence of heart disease.*
+
+We convert this outcome variable to a binary variable called target, where 0 represents no heart disease and 1 represents the presence of heart disease. We also perform basic cleaning and particularly remove columns with many missing values and convert categorical variables into factors.
+
+```{r}
+library(tidyverse)
+
+# loading data
+df <- read_csv('data/raw/heart_disease_uci.csv')
+
+# check 
+glimpse(df)
+summary(df)
+
+# checking missing values
+colSums(is.na(df))
+
+# distribution of target variable
+## num is the diagnosis --- num == 0 (no heart disease), num > 0 (heart disease)
+## convert this to target variable (binary instead of multi-class)
+df <- df %>% 
+  mutate(target = ifelse(num == 0,0,1)) %>% 
+  select(-num)
+
+table(df$target)
+
+# dropping columns with many missing
+df_clean <- df %>% 
+  select(-ca, -thal, -slope) %>% drop_na()
+
+# prepare for model fitting
+## converting categorical variables into factors for analysis
+df_clean <- df_clean %>% 
+  mutate(
+    sex = factor(sex),
+    cp = factor(cp),
+    restecg = factor(restecg),
+    fbs = factor(fbs),
+    exang = factor(exang),
+    dataset = factor(dataset),
+    target = factor(target)
+  )
+
+# inspect cleaned dataset
+glimpse(df_clean)
+table(df_clean$target)
+```
+
+-   mutate(target = ifelse(...)) converts original outcome variable to binary target variable
+
+-   several variables (ca, thal, slope) were dropped because they contain hundreds of missing values
+
+-   categorical variables are converted into factors so that tidymodels can encode them
+
+-   after cleaning, we have 740 complete cases
+
+## Fitting a Logistic Regression Model
+
+Logistic regression is a reasonable first model for binary classification problems like predicting heart disease status. In this section, we use tidymodels to fit the model with the cleaned dataset. We split the data into an 80% training set and 20% test set and create a recipe that removes the patient identifier predictor (id) and encodes all categorical variables. Then, we train the logistic regression model and examine the fitted coefficients.
+
+```{r}
+library(tidymodels)
+
+# splitting data into train/test sets
+set.seed(123)
+data_split <- initial_split(df_clean, prop = 0.8)
+
+train <- training(data_split)
+test <- testing(data_split)
+
+# recipe -- model target using all predictors except id
+heart_recipe <- recipe(target ~ ., data= train) %>% 
+  update_role(id, new_role= 'ID') %>% # removing id from predictors
+  step_dummy(all_nominal_predictors())
+
+# logistic regression model specification
+log_reg_spec <- logistic_reg() %>% 
+  set_engine('glm')
+
+# workflow: recipe + model
+heart_wf <- workflow() %>% 
+  add_model(log_reg_spec) %>% 
+  add_recipe(heart_recipe)
+
+# fit model
+log_reg_fit <- heart_wf %>% fit(data= train)
+log_reg_fit
+```
+
+The output from the above code shows the fitted coefficients. Positive coefficients indicate increased predicted risk of heart disease, while negative coefficients indicate reduced risk.
+
+## Evaluating Model Performance
+
+To better understand how well the logistic regression model generalizes, we evaluate its predictions on the test set from earlier. We compute 3 key metrics: **classification accuracy, confusion matrix, and ROC curve/AUC**.
+
+We compute the probabilities for the positive class (target = 1) and convert them into class labels using a 0.5 threshold.
+
+```{r}
+# predicted probabilities
+test_pred <- predict(log_reg_fit, new_data= test, type = 'prob') %>% 
+  bind_cols(test %>%  select(target))
+
+colnames(test_pred)
+
+# converting probabilities ot class predictions
+test_pred <- test_pred %>% 
+  mutate(.pred_class = ifelse(.pred_1 > 0.5, '1', '0') %>% factor(
+    levels = levels(target)
+  ))
+
+# accuracy and confusion matrix
+log_reg_accuracy <- mean(test_pred$.pred_class == test_pred$target)
+log_reg_accuracy
+
+## gives us about 0.7635 accuracy, meaning that the model is correct with its predictions 76% of the time.
+
+table(
+  Predicted = test_pred$.pred_class,
+  Actual = test_pred$target
+)
+
+## tells us where the model does well versus fails:
+## true negatives: 61 -- correctly predicting no disease
+## true positives: 52 -- correctly predicting disease
+## false positives: 9
+## false negatives: 26
+
+# AUC summarizes how well the model ranks positive versus negative cases:
+library(pROC)
+roc_obj <- roc(test_pred$target, test_pred$.pred_1)
+auc(roc_obj)
+
+## an AUC of 0.8533 tells us that the model does well as differentiating people with and without heart disease
+```
+
+Logistic regression shows us a strong baseline performance for this dataset. The accuracy and AUC values show that even this simple model captures key predictors of heart disease risk relatively well.
+
+## Summary
+
+This vignette demonstrated how to fit and evaluate a logistic regression model for predicting heart disease using the UCI Heart Disease dataset. The workflow touched on the following:
+
+-   importing and exploring the dataset — variable types, missing values, outcomes
+
+    -   basic cleaning removed columns with many missing values, converted variables into factors, and created a binary target variable.
+
+-   preparing data for modeling — using the recipes package, we defined a preprocessing pipeline that:
+
+    -   removes ID variables from predictors
+
+    -   converts categorical variables into dummy columns
+
+-   training a logistic regression model — the model was fit on 80% of the data using the tidymodels library and a standard binomial glm engine
+
+-   evaluating performance on held-out data — assessed predictive performance using:
+
+    -   accuracy (\~0.76)
+
+    -   confusion matrix
+
+    -   ROC curve and AUC (\~0.85)
+
+The results show that a logistic regression model provides a strong and interpretable baseline for heart disease prediction. Several predictors like age, sex, etc. seem to play meaningful roles in determining risk.
+
+To continue with this vignette or understand more about heart disease, it may be worth considering alternative models like random forests or neural networks, regularization via LASSO or other methods to avoid overfitting, or using imputation rather than simply dropping NA/missing values.
