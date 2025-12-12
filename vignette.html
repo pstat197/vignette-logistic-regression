@@ -103,26 +103,367 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="quarto" class="level2">
-<h2 class="anchored" data-anchor-id="quarto">Quarto</h2>
-<p>Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <a href="https://quarto.org" class="uri">https://quarto.org</a>.</p>
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>This vignette provides a simple, beginner-friendly walkthrough of how to fit and evaluate a <strong>logistic regression model</strong> for predicting heart disease using a cleaned version of the <strong>UCI Heart Disease dataset</strong>. Logistic regression is one of the most widely used classification methods in applied statistics and data science, especially when the goal is to predict a <strong>binary outcome</strong>. In this case, whether a patient shows signs of heart disease or not.</p>
+<p>The goal of this vignette is to provide a clear, reproducible example that another student in PSTAT 197A could use when navigating a similar binary classification problem. All steps are shows in R and use the tidymodels library. This vignette focuses on the following:</p>
+<ul>
+<li><p>loading and inspectical and public medical dataset</p></li>
+<li><p>cleaning and preprocessing variables</p></li>
+<li><p>fitting a logistic regression model using tidymodels</p></li>
+<li><p>generating predictions on the test set</p></li>
+<li><p>evaluating model performance using classification accuracy, confusion matrix, and AUC</p></li>
+</ul>
 </section>
-<section id="running-code" class="level2">
-<h2 class="anchored" data-anchor-id="running-code">Running Code</h2>
-<p>When you click the <strong>Render</strong> button a document will be generated that includes both content and the output of embedded code. You can embed code like this:</p>
+<section id="loading-and-preparing-the-data" class="level2">
+<h2 class="anchored" data-anchor-id="loading-and-preparing-the-data">Loading and Preparing the Data</h2>
+<p>We can begin by loading the heart disease dataset. This dataset contains demographic, clinical, and lab measurements for 920 patients. The original outcome variable, num, ranges from 0-4. 0 indicates <em>no heart disease</em> and values 1-4 indicate <em>presence of heart disease.</em></p>
+<p>We convert this outcome variable to a binary variable called target, where 0 represents no heart disease and 1 represents the presence of heart disease. We also perform basic cleaning and particularly remove columns with many missing values and convert categorical variables into factors.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.1.0     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># loading data</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">'data/raw/heart_disease_uci.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 920 Columns: 16
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (6): sex, dataset, cp, restecg, slope, thal
+dbl (8): id, age, trestbps, chol, thalch, oldpeak, ca, num
+lgl (2): fbs, exang
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># check </span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 2</code></pre>
+<pre><code>Rows: 920
+Columns: 16
+$ id       &lt;dbl&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18…
+$ age      &lt;dbl&gt; 63, 67, 67, 37, 41, 56, 62, 57, 63, 53, 57, 56, 56, 44, 52, 5…
+$ sex      &lt;chr&gt; "Male", "Male", "Male", "Male", "Female", "Male", "Female", "…
+$ dataset  &lt;chr&gt; "Cleveland", "Cleveland", "Cleveland", "Cleveland", "Clevelan…
+$ cp       &lt;chr&gt; "typical angina", "asymptomatic", "asymptomatic", "non-angina…
+$ trestbps &lt;dbl&gt; 145, 160, 120, 130, 130, 120, 140, 120, 130, 140, 140, 140, 1…
+$ chol     &lt;dbl&gt; 233, 286, 229, 250, 204, 236, 268, 354, 254, 203, 192, 294, 2…
+$ fbs      &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…
+$ restecg  &lt;chr&gt; "lv hypertrophy", "lv hypertrophy", "lv hypertrophy", "normal…
+$ thalch   &lt;dbl&gt; 150, 108, 129, 187, 172, 178, 160, 163, 147, 155, 148, 153, 1…
+$ exang    &lt;lgl&gt; FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, T…
+$ oldpeak  &lt;dbl&gt; 2.3, 1.5, 2.6, 3.5, 1.4, 0.8, 3.6, 0.6, 1.4, 3.1, 0.4, 1.3, 0…
+$ slope    &lt;chr&gt; "downsloping", "flat", "flat", "downsloping", "upsloping", "u…
+$ ca       &lt;dbl&gt; 0, 3, 2, 0, 0, 0, 2, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0…
+$ thal     &lt;chr&gt; "fixed defect", "normal", "reversable defect", "normal", "nor…
+$ num      &lt;dbl&gt; 0, 2, 1, 0, 0, 0, 3, 0, 2, 1, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0…</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       id             age            sex              dataset         
+ Min.   :  1.0   Min.   :28.00   Length:920         Length:920        
+ 1st Qu.:230.8   1st Qu.:47.00   Class :character   Class :character  
+ Median :460.5   Median :54.00   Mode  :character   Mode  :character  
+ Mean   :460.5   Mean   :53.51                                        
+ 3rd Qu.:690.2   3rd Qu.:60.00                                        
+ Max.   :920.0   Max.   :77.00                                        
+                                                                      
+      cp               trestbps          chol          fbs         
+ Length:920         Min.   :  0.0   Min.   :  0.0   Mode :logical  
+ Class :character   1st Qu.:120.0   1st Qu.:175.0   FALSE:692      
+ Mode  :character   Median :130.0   Median :223.0   TRUE :138      
+                    Mean   :132.1   Mean   :199.1   NA's :90       
+                    3rd Qu.:140.0   3rd Qu.:268.0                  
+                    Max.   :200.0   Max.   :603.0                  
+                    NA's   :59      NA's   :30                     
+   restecg              thalch        exang            oldpeak       
+ Length:920         Min.   : 60.0   Mode :logical   Min.   :-2.6000  
+ Class :character   1st Qu.:120.0   FALSE:528       1st Qu.: 0.0000  
+ Mode  :character   Median :140.0   TRUE :337       Median : 0.5000  
+                    Mean   :137.5   NA's :55        Mean   : 0.8788  
+                    3rd Qu.:157.0                   3rd Qu.: 1.5000  
+                    Max.   :202.0                   Max.   : 6.2000  
+                    NA's   :55                      NA's   :62       
+    slope                 ca             thal                num        
+ Length:920         Min.   :0.0000   Length:920         Min.   :0.0000  
+ Class :character   1st Qu.:0.0000   Class :character   1st Qu.:0.0000  
+ Mode  :character   Median :0.0000   Mode  :character   Median :1.0000  
+                    Mean   :0.6764                      Mean   :0.9957  
+                    3rd Qu.:1.0000                      3rd Qu.:2.0000  
+                    Max.   :3.0000                      Max.   :4.0000  
+                    NA's   :611                                         </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># checking missing values</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(df))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      id      age      sex  dataset       cp trestbps     chol      fbs 
+       0        0        0        0        0       59       30       90 
+ restecg   thalch    exang  oldpeak    slope       ca     thal      num 
+       2       55       55       62      309      611      486        0 </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># distribution of target variable</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="do">## num is the diagnosis --- num == 0 (no heart disease), num &gt; 0 (heart disease)</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="do">## convert this to target variable (binary instead of multi-class)</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> </span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">target =</span> <span class="fu">ifelse</span>(num <span class="sc">==</span> <span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">1</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>num)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(df<span class="sc">$</span>target)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+  0   1 
+411 509 </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># dropping columns with many missing</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>df_clean <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> </span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>ca, <span class="sc">-</span>thal, <span class="sc">-</span>slope) <span class="sc">%&gt;%</span> <span class="fu">drop_na</span>()</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co"># prepare for model fitting</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="do">## converting categorical variables into factors for analysis</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>df_clean <span class="ot">&lt;-</span> df_clean <span class="sc">%&gt;%</span> </span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">sex =</span> <span class="fu">factor</span>(sex),</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">cp =</span> <span class="fu">factor</span>(cp),</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">restecg =</span> <span class="fu">factor</span>(restecg),</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">fbs =</span> <span class="fu">factor</span>(fbs),</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">exang =</span> <span class="fu">factor</span>(exang),</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">dataset =</span> <span class="fu">factor</span>(dataset),</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">target =</span> <span class="fu">factor</span>(target)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="co"># inspect cleaned dataset</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_clean)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 740
+Columns: 13
+$ id       &lt;dbl&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18…
+$ age      &lt;dbl&gt; 63, 67, 67, 37, 41, 56, 62, 57, 63, 53, 57, 56, 56, 44, 52, 5…
+$ sex      &lt;fct&gt; Male, Male, Male, Male, Female, Male, Female, Female, Male, M…
+$ dataset  &lt;fct&gt; Cleveland, Cleveland, Cleveland, Cleveland, Cleveland, Clevel…
+$ cp       &lt;fct&gt; typical angina, asymptomatic, asymptomatic, non-anginal, atyp…
+$ trestbps &lt;dbl&gt; 145, 160, 120, 130, 130, 120, 140, 120, 130, 140, 140, 140, 1…
+$ chol     &lt;dbl&gt; 233, 286, 229, 250, 204, 236, 268, 354, 254, 203, 192, 294, 2…
+$ fbs      &lt;fct&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…
+$ restecg  &lt;fct&gt; lv hypertrophy, lv hypertrophy, lv hypertrophy, normal, lv hy…
+$ thalch   &lt;dbl&gt; 150, 108, 129, 187, 172, 178, 160, 163, 147, 155, 148, 153, 1…
+$ exang    &lt;fct&gt; FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, T…
+$ oldpeak  &lt;dbl&gt; 2.3, 1.5, 2.6, 3.5, 1.4, 0.8, 3.6, 0.6, 1.4, 3.1, 0.4, 1.3, 0…
+$ target   &lt;fct&gt; 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0…</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(df_clean<span class="sc">$</span>target)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+  0   1 
+357 383 </code></pre>
 </div>
 </div>
-<p>You can add options to executable code like this</p>
+<ul>
+<li><p>mutate(target = ifelse(…)) converts original outcome variable to binary target variable</p></li>
+<li><p>several variables (ca, thal, slope) were dropped because they contain hundreds of missing values</p></li>
+<li><p>categorical variables are converted into factors so that tidymodels can encode them</p></li>
+<li><p>after cleaning, we have 740 complete cases</p></li>
+</ul>
+</section>
+<section id="fitting-a-logistic-regression-model" class="level2">
+<h2 class="anchored" data-anchor-id="fitting-a-logistic-regression-model">Fitting a Logistic Regression Model</h2>
+<p>Logistic regression is a reasonable first model for binary classification problems like predicting heart disease status. In this section, we use tidymodels to fit the model with the cleaned dataset. We split the data into an 80% training set and 20% test set and create a recipe that removes the patient identifier predictor (id) and encodes all categorical variables. Then, we train the logistic regression model and examine the fitted coefficients.</p>
 <div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidymodels)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching packages ────────────────────────────────────── tidymodels 1.4.1 ──</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>✔ broom        1.0.10     ✔ rsample      1.3.1 
+✔ dials        1.4.2      ✔ tailor       0.1.0 
+✔ infer        1.0.9      ✔ tune         2.0.0 
+✔ modeldata    1.5.1      ✔ workflows    1.3.0 
+✔ parsnip      1.3.3      ✔ workflowsets 1.1.1 
+✔ recipes      1.3.1      ✔ yardstick    1.3.2 </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
+✖ scales::discard() masks purrr::discard()
+✖ dplyr::filter()   masks stats::filter()
+✖ recipes::fixed()  masks stringr::fixed()
+✖ dplyr::lag()      masks stats::lag()
+✖ yardstick::spec() masks readr::spec()
+✖ recipes::step()   masks stats::step()</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># splitting data into train/test sets</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>data_split <span class="ot">&lt;-</span> <span class="fu">initial_split</span>(df_clean, <span class="at">prop =</span> <span class="fl">0.8</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>train <span class="ot">&lt;-</span> <span class="fu">training</span>(data_split)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> <span class="fu">testing</span>(data_split)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="co"># recipe -- model target using all predictors except id</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>heart_recipe <span class="ot">&lt;-</span> <span class="fu">recipe</span>(target <span class="sc">~</span> ., <span class="at">data=</span> train) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">update_role</span>(id, <span class="at">new_role=</span> <span class="st">'ID'</span>) <span class="sc">%&gt;%</span> <span class="co"># removing id from predictors</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">step_dummy</span>(<span class="fu">all_nominal_predictors</span>())</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co"># logistic regression model specification</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>log_reg_spec <span class="ot">&lt;-</span> <span class="fu">logistic_reg</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">'glm'</span>)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co"># workflow: recipe + model</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>heart_wf <span class="ot">&lt;-</span> <span class="fu">workflow</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_model</span>(log_reg_spec) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_recipe</span>(heart_recipe)</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="co"># fit model</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>log_reg_fit <span class="ot">&lt;-</span> heart_wf <span class="sc">%&gt;%</span> <span class="fu">fit</span>(<span class="at">data=</span> train)</span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>log_reg_fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 4</code></pre>
+<pre><code>══ Workflow [trained] ══════════════════════════════════════════════════════════
+Preprocessor: Recipe
+Model: logistic_reg()
+
+── Preprocessor ────────────────────────────────────────────────────────────────
+1 Recipe Step
+
+• step_dummy()
+
+── Model ───────────────────────────────────────────────────────────────────────
+
+Call:  stats::glm(formula = ..y ~ ., family = stats::binomial, data = data)
+
+Coefficients:
+             (Intercept)                       age                  trestbps  
+               -1.856055                  0.023124                  0.003384  
+                    chol                    thalch                   oldpeak  
+                0.003011                 -0.014158                  0.865002  
+                sex_Male           dataset_Hungary       dataset_Switzerland  
+                1.492069                 -0.003593                  4.812335  
+   dataset_VA.Long.Beach        cp_atypical.angina            cp_non.anginal  
+                0.621210                 -1.531791                 -1.471382  
+       cp_typical.angina                 fbs_TRUE.            restecg_normal  
+               -1.608761                  0.651980                 -0.531608  
+restecg_st.t.abnormality               exang_TRUE.  
+               -0.664087                  0.952648  
+
+Degrees of Freedom: 591 Total (i.e. Null);  575 Residual
+Null Deviance:      820.1 
+Residual Deviance: 444.5    AIC: 478.5</code></pre>
 </div>
 </div>
-<p>The <code>echo: false</code> option disables the printing of code (only output is displayed).</p>
+<p>The output from the above code shows the fitted coefficients. Positive coefficients indicate increased predicted risk of heart disease, while negative coefficients indicate reduced risk.</p>
+</section>
+<section id="evaluating-model-performance" class="level2">
+<h2 class="anchored" data-anchor-id="evaluating-model-performance">Evaluating Model Performance</h2>
+<p>To better understand how well the logistic regression model generalizes, we evaluate its predictions on the test set from earlier. We compute 3 key metrics: <strong>classification accuracy, confusion matrix, and ROC curve/AUC</strong>.</p>
+<p>We compute the probabilities for the positive class (target = 1) and convert them into class labels using a 0.5 threshold.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># predicted probabilities</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>test_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(log_reg_fit, <span class="at">new_data=</span> test, <span class="at">type =</span> <span class="st">'prob'</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(test <span class="sc">%&gt;%</span>  <span class="fu">select</span>(target))</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(test_pred)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] ".pred_0" ".pred_1" "target" </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># converting probabilities ot class predictions</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>test_pred <span class="ot">&lt;-</span> test_pred <span class="sc">%&gt;%</span> </span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">.pred_class =</span> <span class="fu">ifelse</span>(.pred_1 <span class="sc">&gt;</span> <span class="fl">0.5</span>, <span class="st">'1'</span>, <span class="st">'0'</span>) <span class="sc">%&gt;%</span> <span class="fu">factor</span>(</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> <span class="fu">levels</span>(target)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co"># accuracy and confusion matrix</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>log_reg_accuracy <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_pred<span class="sc">$</span>.pred_class <span class="sc">==</span> test_pred<span class="sc">$</span>target)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>log_reg_accuracy</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.7635135</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="do">## gives us about 0.7635 accuracy, meaning that the model is correct with its predictions 76% of the time.</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">Predicted =</span> test_pred<span class="sc">$</span>.pred_class,</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">Actual =</span> test_pred<span class="sc">$</span>target</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Actual
+Predicted  0  1
+        0 61 26
+        1  9 52</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="do">## tells us where the model does well versus fails:</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="do">## true negatives: 61 -- correctly predicting no disease</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="do">## true positives: 52 -- correctly predicting disease</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="do">## false positives: 9</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="do">## false negatives: 26</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co"># AUC summarizes how well the model ranks positive versus negative cases:</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pROC)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Type 'citation("pROC")' for a citation.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'pROC'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    cov, smooth, var</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>roc_obj <span class="ot">&lt;-</span> <span class="fu">roc</span>(test_pred<span class="sc">$</span>target, test_pred<span class="sc">$</span>.pred_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting levels: control = 0, case = 1</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting direction: controls &lt; cases</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">auc</span>(roc_obj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Area under the curve: 0.8533</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="do">## an AUC of 0.8533 tells us that the model does well as differentiating people with and without heart disease</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Logistic regression shows us a strong baseline performance for this dataset. The accuracy and AUC values show that even this simple model captures key predictors of heart disease risk relatively well.</p>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>This vignette demonstrated how to fit and evaluate a logistic regression model for predicting heart disease using the UCI Heart Disease dataset. The workflow touched on the following:</p>
+<ul>
+<li><p>importing and exploring the dataset — variable types, missing values, outcomes</p>
+<ul>
+<li>basic cleaning removed columns with many missing values, converted variables into factors, and created a binary target variable.</li>
+</ul></li>
+<li><p>preparing data for modeling — using the recipes package, we defined a preprocessing pipeline that:</p>
+<ul>
+<li><p>removes ID variables from predictors</p></li>
+<li><p>converts categorical variables into dummy columns</p></li>
+</ul></li>
+<li><p>training a logistic regression model — the model was fit on 80% of the data using the tidymodels library and a standard binomial glm engine</p></li>
+<li><p>evaluating performance on held-out data — assessed predictive performance using:</p>
+<ul>
+<li><p>accuracy (~0.76)</p></li>
+<li><p>confusion matrix</p></li>
+<li><p>ROC curve and AUC (~0.85)</p></li>
+</ul></li>
+</ul>
+<p>The results show that a logistic regression model provides a strong and interpretable baseline for heart disease prediction. Several predictors like age, sex, etc. seem to play meaningful roles in determining risk.</p>
+<p>To continue with this vignette or understand more about heart disease, it may be worth considering alternative models like random forests or neural networks, regularization via LASSO or other methods to avoid overfitting, or using imputation rather than simply dropping NA/missing values.</p>
+</section>
+<section id="plots" class="level2">
+<h2 class="anchored" data-anchor-id="plots">Plots</h2>
+</section>
+<section id="predicted-probabilities-plot" class="level2">
+<h2 class="anchored" data-anchor-id="predicted-probabilities-plot">Predicted Probabilities Plot</h2>
+<p><img src="img/logistic_probabilities.png" class="img-fluid" style="width:70.0%"></p>
+</section>
+<section id="roc-curve" class="level2">
+<h2 class="anchored" data-anchor-id="roc-curve">ROC Curve</h2>
+<p><img src="img/roc_curve.png" class="img-fluid" style="width:70.0%"></p>
 </section>
 
 </main>
